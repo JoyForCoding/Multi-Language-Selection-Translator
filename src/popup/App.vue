@@ -68,10 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import {
   SUPPORTED_LANGUAGES,
-  DEFAULT_SELECTED_LANGUAGES,
   MAX_SELECTED_LANGUAGES,
   normalizeSelectedLanguages,
 } from '@/constants/languages';
@@ -89,6 +88,20 @@ const cloudApiUrl = ref('');
 const cloudApiKey = ref('');
 const cloudModel = ref('');
 const apiSaveStatus = ref('');
+
+function toLanguageIdArray(raw: unknown): LanguageId[] | null {
+  if (Array.isArray(raw)) {
+    return raw as LanguageId[];
+  }
+  if (raw && typeof raw === 'object') {
+    // 有些环境下存进去的数组会被还原成 {0: 'en', 1: 'ja', ...} 这种形式，这里简单转一下
+    const values = Object.values(raw);
+    if (values.every((v) => typeof v === 'string')) {
+      return values as LanguageId[];
+    }
+  }
+  return null;
+}
 
 function persistSelected() {
   chrome.storage.sync.set({ [STORAGE_KEYS.selectedLanguages]: selectedIds.value });
@@ -129,15 +142,18 @@ onMounted(() => {
   chrome.storage.sync.get(
     [STORAGE_KEYS.selectedLanguages, STORAGE_KEYS.triggerMode],
     (stored) => {
-      const normalized = normalizeSelectedLanguages(stored?.[STORAGE_KEYS.selectedLanguages]);
-      selectedIds.value = [...normalized];
       const raw = stored?.[STORAGE_KEYS.selectedLanguages];
-      if (!raw || !Array.isArray(raw) || raw.length < 1 || raw.length > MAX_SELECTED_LANGUAGES) {
+      const arr = toLanguageIdArray(raw);
+      if (arr && arr.length >= 1 && arr.length <= MAX_SELECTED_LANGUAGES) {
+        selectedIds.value = [...arr];
+      } else {
+        selectedIds.value = ['en', 'ja'];
         chrome.storage.sync.set({ [STORAGE_KEYS.selectedLanguages]: selectedIds.value });
       }
       triggerMode.value = normalizeTriggerMode(stored?.[STORAGE_KEYS.triggerMode]);
     }
   );
+
   chrome.storage.local.get(
     [STORAGE_KEYS.cloudApiUrl, STORAGE_KEYS.cloudApiKey, STORAGE_KEYS.cloudModel],
     (stored) => {

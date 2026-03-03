@@ -1,14 +1,12 @@
 import { createApp } from 'vue';
 import FloatingCard from './FloatingCard.vue';
 import { DEFAULT_SELECTED_LANGUAGES, normalizeSelectedLanguages } from '@/constants/languages';
-import type { SelectedLanguages } from '@/constants/languages';
+import type { SelectedLanguages, LanguageId } from '@/constants/languages';
 import {
   STORAGE_KEYS,
   normalizeTriggerMode,
   type TriggerMode,
 } from '@/constants/storageKeys';
-
-console.log('[content_script] loaded');
 
 interface SelectionRect {
   x: number;
@@ -65,6 +63,19 @@ const getSelectionContext = (): SelectionContext | null => {
 let cardHost: HTMLDivElement | null = null;
 let cardShadowRoot: ShadowRoot | null = null;
 let cardApp: ReturnType<typeof createApp> | null = null;
+
+function toLanguageIdArray(raw: unknown): LanguageId[] | null {
+  if (Array.isArray(raw)) {
+    return raw as LanguageId[];
+  }
+  if (raw && typeof raw === 'object') {
+    const values = Object.values(raw);
+    if (values.every((v) => typeof v === 'string')) {
+      return values as LanguageId[];
+    }
+  }
+  return null;
+}
 
 function closeFloatingCard(): void {
   if (cardApp) {
@@ -223,12 +234,17 @@ function mountFloatingCard(
 }
 
 const handleMouseUp = (e: MouseEvent) => {
+  if (cardHost && e.target instanceof Node && cardHost.contains(e.target)) {
+    return;
+  }
   const context = getSelectionContext();
   if (!context) return;
   chrome.storage.sync.get([STORAGE_KEYS.selectedLanguages, STORAGE_KEYS.triggerMode], (stored) => {
     const triggerMode = normalizeTriggerMode(stored?.[STORAGE_KEYS.triggerMode]);
     if (triggerMode === 'modifier' && !e.altKey) return;
-    const languages = normalizeSelectedLanguages(stored?.[STORAGE_KEYS.selectedLanguages]);
+    const raw = stored?.[STORAGE_KEYS.selectedLanguages];
+    const arr = toLanguageIdArray(raw);
+    const languages = arr && arr.length >= 1 ? (arr as SelectedLanguages) : normalizeSelectedLanguages(raw);
     mountFloatingCard(context.rect, context.text, context.text, languages);
   });
 };

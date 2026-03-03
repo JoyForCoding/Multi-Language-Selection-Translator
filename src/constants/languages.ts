@@ -34,16 +34,16 @@ export function getLanguageSpeechLocale(id: LanguageId): string {
   return SPEECH_LOCALE[id] ?? id;
 }
 
-// Short label used in floating card (one or two chars).
+// 浮层里用的小标签文案，尽量简短一点。
 export function getLanguageShortLabel(id: LanguageId): string {
   const labels: Record<LanguageId, string> = {
-    zh: '\u4e2d', // 中
-    en: 'EN',     // 英
-    ja: '\u65e5', // 日
-    ko: '\u97e9', // 韩
-    fr: '\u6cd5', // 法
-    de: '\u5fb7', // 德
-    es: '\u897f', // 西
+    zh: 'ZH',
+    en: 'EN',
+    ja: 'JA',
+    ko: 'KO',
+    fr: 'FR',
+    de: 'DE',
+    es: 'ES',
   };
   return labels[id] ?? id.toUpperCase();
 }

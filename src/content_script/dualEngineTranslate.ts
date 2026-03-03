@@ -1,7 +1,6 @@
 /**
- * 云端翻译：通过 Background 调用配置的云端 API。
- * 必须在「有 window 的上下文」运行（Content Script / Popup），
- * Background Service Worker 无 window，不能直接调用本模块。
+ * 跟云端翻译打交道的一些小工具。
+ * 一般跑在有 window 的环境里（content script / popup）。
  */
 import type { TranslationResult } from '@/types/translation';
 import type { LanguageId } from '@/constants/languages';
@@ -13,14 +12,14 @@ export type CloudTranslateFn = (
 ) => Promise<TranslationResult>;
 
 export interface CloudTranslateOptions {
-  /** 本次请求的 1～3 种语言 */
+  /** 这一轮要翻成哪些语言 */
   languages: readonly LanguageId[];
-  /** 云端翻译：通常为向 Background 发 sendMessage 并返回 data */
+  /** 具体怎么请求云端，由外面传进来 */
   cloudFn: CloudTranslateFn;
 }
 
 /**
- * 使用云端 API 翻译，返回结果按 options.languages 动态（TranslationResult.explanations）。
+ * 很薄的一层包装，直接把参数丢给 cloudFn。
  */
 export async function translateWithCloud(
   term: string,
@@ -31,7 +30,8 @@ export async function translateWithCloud(
 }
 
 /**
- * Content Script 中使用的云端实现：通过 chrome.runtime.sendMessage 请求 Background 调用云端 API。
+ * content script 里默认用的实现：
+ * 通过 chrome.runtime.sendMessage 让 background 去打云端 API。
  */
 export function createCloudFnFromBackground(): CloudTranslateFn {
   return (term: string, contextText: string, languages: readonly LanguageId[]) =>

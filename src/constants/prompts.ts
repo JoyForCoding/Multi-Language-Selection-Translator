@@ -1,7 +1,7 @@
 import type { LanguageId } from '@/constants/languages';
 import { getLanguagePromptName } from '@/constants/languages';
 
-// 根据所选语言构建云端大模型所用的prompt
+// 根据当前勾选的语言，拼一段给云端模型用的 system prompt。
 export function buildTranslationSystemPrompt(languageIds: readonly LanguageId[]): string {
   const langList = languageIds
     .map(
@@ -35,22 +35,9 @@ Output requirements:
      - For single words: use a single word or short expression.
      - For sentences: use a full-sentence translation.
 
-Example (word):
-term = "framework"
-explanations = {
-  "zh": "框架",
-  "en": "framework",
-  "ja": "フレームワーク"
-}
+Important constraints:
+- You MUST NOT invent extra language keys. Only use the ids from this request: ${keysList}.
+- Do not add explanations about what you did, and do not include examples in the output.
 
-Example (sentence):
-term = "Manage roles and members to control who can view and edit this app."
-explanations = {
-  "zh": "<Chinese full-sentence translation>",
-  "en": "<English full-sentence translation>",
-  "ja": "<Japanese full-sentence translation>"
-}
-
-Do not add explanations about what you did, and do not include examples in the output.
 Always respond with exactly one JSON object matching the structure described above.`;
 }

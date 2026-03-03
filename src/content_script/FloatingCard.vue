@@ -5,7 +5,7 @@
     </div>
     <template v-else-if="error">
       <p class="error">{{ error }}</p>
-      <p v-if="showConfigHint" class="hint">配置说明请点击浏览器工具栏中的扩展图标查看。</p>
+      <p v-if="showConfigHint" class="hint">For configuration instructions, please click the extension icon in the browser toolbar.</p>
     </template>
     <template v-else-if="result">
       <div class="layout-rows-inner">
@@ -17,7 +17,7 @@
             type="button"
             class="speak-btn"
             :class="{ speaking: speakingLangId === langId }"
-            :aria-label="'朗读' + (result.explanations[langId] || '')"
+            :aria-label="'Speak ' + (result.explanations[langId] || '')"
             @click="onSpeak(result.explanations[langId], langId)"
           >
             <svg class="speak-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -55,7 +55,7 @@ const props = defineProps<{
 
 const OFFSET = 8;
 
-/** 标签徽标内联样式，小尺寸、统一宽度，行高与右侧释义一致 */
+// 标签徽标内联样式
 const flagStyle = {
   display: 'inline-block',
   boxSizing: 'border-box' as const,
@@ -82,7 +82,7 @@ const languages = computed(() => props.languages);
 
 function isSpeakable(text: string | undefined): boolean {
   if (!text || text.trim() === '' || text === '—') return false;
-  if (text.includes('该语言释义未返回') || text.includes('请检查模型输出格式')) return false;
+  if (text.includes('No definition returned for this language') || text.includes('Please check the model output format')) return false;
   return true;
 }
 
@@ -118,11 +118,11 @@ onMounted(() => {
     .catch((e) => {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes('Extension context invalidated')) {
-        error.value = '扩展已重新加载，请刷新本页后重新划词。';
-      } else if (msg.includes('云端 API 未配置') || msg.includes('CLOUD_API_URL')) {
-        error.value = '翻译暂不可用（请配置云端 API）。';
+        error.value = 'Extension has been reloaded. Please refresh this page and try again.';
+      } else if (msg.includes('Cloud API is not configured') || msg.includes('CLOUD_API_URL')) {
+        error.value = 'Translation unavailable (please configure the cloud API).';
       } else if (msg.includes('Failed to fetch') || msg.includes('fetch')) {
-        error.value = '云端翻译不可用：请检查网络连接或 API 配置。';
+        error.value = 'Cloud translation unavailable: please check your network connection or API configuration.';
       } else {
         error.value = msg;
       }
@@ -134,7 +134,12 @@ onMounted(() => {
 
 const showConfigHint = computed(() => {
   const e = error.value;
-  return e && (e.includes('云端') || e.includes('未配置') || e.includes('暂不可用') || e.includes('API 配置'));
+  return e && (
+    e.includes('cloud') ||
+    e.includes('unavailable') ||
+    e.includes('not configured') ||
+    e.includes('API configuration')
+  );
 });
 
 const cardStyle = computed(() => {
@@ -151,7 +156,7 @@ const cardStyle = computed(() => {
     maxWidth: '420px',
     padding: '12px 16px',
     borderRadius: '8px',
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as const,
   };
 });
 </script>

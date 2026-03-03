@@ -1,30 +1,29 @@
 import type { LanguageId } from '@/constants/languages';
 
 /**
- * 翻译结果：按「所选语言」动态，只包含用户请求的语言释义。
- * explanations 的 key 为语言 id，value 为该语言的释义文案。
+ * 每次翻译的结果，只保留这次真正要的语言。
+ * explanations 里用语言 id 当 key，比如 zh / en / ja。
  */
 export interface TranslationResult {
   term: string;
   explanations: Partial<Record<LanguageId, string>>;
 }
 
-/** Content Script / Popup 发给 Background 的翻译请求 */
+/** content script / popup 丢给 background 的消息结构 */
 export interface TranslateMessagePayload {
   type: 'TRANSLATE_TERM';
   term: string;
   contextText: string;
-  /** 本次请求的 1～3 种语言，未传则用默认（如中英日） */
   languages?: readonly LanguageId[];
 }
 
-/** Background 通过 sendResponse 返回的成功结构 */
+/** background 正常返回时的结构 */
 export interface TranslateResponseOk {
   ok: true;
   data: TranslationResult;
 }
 
-/** Background 通过 sendResponse 返回的失败结构 */
+/** background 出错时的结构 */
 export interface TranslateResponseErr {
   ok: false;
   error: string;
@@ -33,8 +32,8 @@ export interface TranslateResponseErr {
 export type TranslateResponse = TranslateResponseOk | TranslateResponseErr;
 
 /**
- * 运行时校验：将未知对象收窄为 TranslationResult（且包含指定语言的释义），否则抛错。
- * @param languageIds 本次请求的语言列表，explanations 中必须包含这些 key 且值为 string。
+ * 运行时兜底检查一下模型返回的内容，真不对就直接抛错。
+ * @param languageIds 这次期望返回的语言列表
  */
 export function assertTranslationResult(
   value: unknown,
@@ -58,7 +57,7 @@ export function assertTranslationResult(
   }
 }
 
-/** 旧版/常见字段名到 LanguageId 的映射，兼容大模型返回的不同 key */
+/** 一些老字段名到语言 id 的映射，方便兼容不同接口返回 */
 const LEGACY_KEY_TO_LANG: Record<string, LanguageId> = {
   chinese_explanation: 'zh',
   chinese: 'zh',
@@ -77,7 +76,7 @@ function getString(obj: Record<string, unknown>, key: string): string | undefine
   return typeof v === 'string' ? v : undefined;
 }
 
-/** 键名模糊匹配：含 zh/chinese 的 key 填 zh，含 en/english 填 en，依此类推 */
+/** 粗略按字段名里带的关键字猜一下语言 */
 const FUZZY_KEY_PATTERNS: { pattern: RegExp; id: LanguageId }[] = [
   { pattern: /zh|chinese|中文/i, id: 'zh' },
   { pattern: /en|english|英文/i, id: 'en' },
@@ -105,8 +104,8 @@ function collectByFuzzyKey(
 }
 
 /**
- * 从 API 返回的 JSON 中按本次请求的 languageIds 抽取 explanations。
- * 支持：explanations 对象、平铺 *_explanation、旧字段名（chinese_explanation 等）、Markdown 包裹。
+ * 从一坨 JSON 里，把这次要的几个语言的释义扒出来。
+ * 支持 explanations 对象、平铺 *_explanation、老字段名、简单 Markdown 包裹等几种常见写法。
  */
 function normalizeToTranslationResult(
   parsed: Record<string, unknown>,
@@ -153,7 +152,7 @@ function normalizeToTranslationResult(
     collectByFuzzyKey(nested as Record<string, unknown>, languageIds, explanations);
   }
 
-  const missingPlaceholder = '（该语言释义未返回，请检查模型输出格式）';
+  const missingPlaceholder = 'No definition returned for this language. Please check the model output format.';
   for (const id of languageIds) {
     if (typeof explanations[id] !== 'string') {
       explanations[id] = missingPlaceholder;
@@ -163,7 +162,7 @@ function normalizeToTranslationResult(
   return { term, explanations };
 }
 
-/** 尝试从可能被 Markdown 代码块包裹的字符串中提取 JSON */
+/** 有些模型会用 ```json 包一层，这里简单把壳剥掉 */
 function extractJsonString(raw: string): string {
   const trimmed = raw.trim();
   const codeBlock = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
@@ -172,9 +171,8 @@ function extractJsonString(raw: string): string {
 }
 
 /**
- * 从 API 返回的 content 字符串解析为 TranslationResult。
- * 支持 Markdown 代码块包裹、双重 JSON 字符串、explanations / 平铺 / 旧字段名。
- * 若某语言无对应字段，用占位文案填充，不抛错。
+ * 把模型返回的 content 字符串解析成 TranslationResult。
+ * 尝试适配几种常见形态，不至于因为小差异就直接挂掉。
  */
 export function parseTranslationResult(
   rawContent: string,

@@ -53,10 +53,9 @@ function pickVoiceForLang(voices: SpeechSynthesisVoice[], langTag: string): Spee
   return voices.find((v) => v.default) ?? voices[0] ?? null;
 }
 
-/** 是否为空或占位文案（不朗读） */
 function isSpeakableText(text: string): boolean {
   if (!text || text.trim() === '' || text === '—') return false;
-  if (text.includes('该语言释义未返回') || text.includes('请检查模型输出格式')) return false;
+  if (text.includes('No definition returned for this language') || text.includes('Please check the model output format')) return false;
   return true;
 }
 
@@ -83,15 +82,9 @@ export function speak(text: string, langId: LanguageId): void {
   });
 }
 
-/** 停止当前朗读 */
 export function stopSpeaking(): void {
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
-}
-
-/** 当前是否正在朗读（可用于 UI 高亮） */
-export function isSpeaking(): boolean {
-  return typeof window !== 'undefined' && !!window.speechSynthesis?.speaking;
 }
 
